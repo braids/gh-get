@@ -18,52 +18,94 @@
 #include <string.h>
 #include <sys/stat.h>
 
+/* Obtain what our setting in Git is for the repo dir */
+char * repoDir()
+{
+    char dir[255];
+    FILE *fp;
+    
+    fp = popen("git config --global --get gh-get.dir", "r");
+    fgets(dir, 255, fp);
+    pclose(fp);
+    
+    if(sizeof(dir) > 0)
+        return dir;
+    
+    return NULL;
+}
+
 int main(int argc, char **argv)
 {
     int i;
+    
+    char * repo = repoDir();
     
     /* Only taking one arg for now, yell if we get more or less. */
     if(argc < 2)
     {
         printf("Error: Less than one argument specified.\nUsage: gh-get <GitHub user>/<repository>\n");
-        return 1;
+        return 1; 
     }
-    else if (argc > 2)
+    else if (argc > 3)
     {
         printf("Error: More than one argument specified.\nUsage: gh-get <GitHub user>/<repository>\n");
         return 2;
     }
     
-    /* Store input and isolate repo name. */
-    char * input = argv[1];
-    char * reponame = strchr(input, '/');
-    reponame++;
-    
-    /* Find if repo exists */
-    bool repoexists = false;
-    struct stat s;
-    stat(reponame, &s);
-    if(S_ISDIR(s.st_mode))
-        repoexists = true;
-    
     /* Build our git request. */
     char cmdstr[255] = "git ";
-    if(repoexists) 
+        
+    char * input = argv[1];
+    char * param = argv[2];
+    printf("%d",strcmp(input,"-dir"));
+    printf("%s\n", param);
+    /* Set home repo dir if -dir specified*/
+    if(strcmp(input,"-dir") == 0)
     {
-        /* If repo exists, perform a pull. */
-        strcat(cmdstr, "-C ");
-        strcat(cmdstr, reponame);
-        strcat(cmdstr, " pull");
+        char newdir[] = "git config --global --replace-all gh-get.dir ";
+        //strcpy(newdir, "config --global --replace-all gh-get.dir ");
+        strcat(newdir, param);
+        printf("%s\n", newdir);
+        strcpy(cmdstr, newdir);
+        printf("%s\n", cmdstr);
     }
     else
     {
-        /* If repo does not exist, clone the repo. */
-        strcat(cmdstr, "clone https://github.com/");
-        strcat(cmdstr, input);
-        strcat(cmdstr, ".git");
+        /* Find if repo exists */
+        bool repoexists = false;
+        struct stat s;
+        stat(input, &s);
+        if(S_ISDIR(s.st_mode))
+            repoexists = true;
+        
+        if(repoexists) 
+        {
+            /* If repo exists, perform a pull. */
+            strcat(cmdstr, "-C ");
+            if(repo != NULL) 
+            {
+                strcat(cmdstr, repo);
+                strcat(cmdstr, "/");
+            }
+            strcat(cmdstr, input);
+            strcat(cmdstr, " pull");
+        }
+        else
+        {
+            /* If repo does not exist, clone the repo. */
+            strcat(cmdstr, "clone https://github.com/");
+            strcat(cmdstr, input);
+            strcat(cmdstr, ".git ");
+            if(repo != NULL) 
+            {
+                strcat(cmdstr, repo);
+                strcat(cmdstr, "/");
+                strcat(cmdstr, input);
+            }
+        }
     }
     
-    /* Run our git clone/pull. */
+    /* Run our git command. */
     i=system(cmdstr);
     
     /* Return whatever value we got. */
