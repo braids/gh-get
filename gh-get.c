@@ -57,24 +57,32 @@ int main(int argc, char **argv)
         
     char * input = argv[1];
     char * param = argv[2];
-    printf("%d",strcmp(input,"-dir"));
-    printf("%s\n", param);
-    /* Set home repo dir if -dir specified*/
+    
+        /* Set home repo dir if -dir specified*/
     if(strcmp(input,"-dir") == 0)
     {
         char newdir[] = "git config --global --replace-all gh-get.dir ";
-        //strcpy(newdir, "config --global --replace-all gh-get.dir ");
         strcat(newdir, param);
-        printf("%s\n", newdir);
-        strcpy(cmdstr, newdir);
-        printf("%s\n", cmdstr);
+        
+        i=system(newdir);
+        
+        return i;
     }
     else
     {
         /* Find if repo exists */
         bool repoexists = false;
         struct stat s;
-        stat(input, &s);
+        if(repo != NULL)
+        {
+            char * statdir = repo;
+            strcat(statdir, "/");
+            strcat(statdir, input);
+            printf("%s", statdir);
+            stat(statdir, &s);
+        }
+        else
+            stat(input, &s);
         if(S_ISDIR(s.st_mode))
             repoexists = true;
         
@@ -104,6 +112,8 @@ int main(int argc, char **argv)
             }
         }
     }
+    
+    printf("%s\n", cmdstr);
     
     /* Run our git command. */
     i=system(cmdstr);
