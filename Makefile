@@ -4,4 +4,4 @@ CC=gcc
 all: gh-get
 
 gh-get:
-    $(CC) gh-get.c -o $(OUT)
+	$(CC) gh-get.c -o $(OUT)

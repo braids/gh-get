@@ -18,7 +18,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#DEFINE STR_BUF 255
+#define STR_BUF 255
 
 bool isDir(char * dir)
 {
