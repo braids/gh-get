@@ -18,106 +18,74 @@
 #include <string.h>
 #include <sys/stat.h>
 
-/* Obtain what our setting in Git is for the repo dir */
-char * repoDir()
+bool isDir(char * dir)
 {
-    char dir[255];
-    FILE *fp;
-    
-    fp = popen("git config --global --get gh-get.dir", "r");
-    fgets(dir, 255, fp);
-    pclose(fp);
-    
-    if(sizeof(dir) > 0)
-        return dir;
-    
-    return NULL;
+    struct stat statdir;
+    stat(dir, &statdir);
+    return S_ISDIR(statdir.st_mode) ? true : false;
 }
 
 int main(int argc, char **argv)
 {
-    int i;
-    
-    char * repo = repoDir();
-    
-    /* Only taking one arg for now, yell if we get more or less. */
+    /* Taking one or more args for now, yell if we get less. */
     if(argc < 2)
     {
         printf("Error: Less than one argument specified.\nUsage: gh-get <GitHub user>/<repository>\n");
         return 1; 
     }
-    else if (argc > 3)
-    {
-        printf("Error: More than one argument specified.\nUsage: gh-get <GitHub user>/<repository>\n");
-        return 2;
-    }
     
-    /* Build our git request. */
-    char cmdstr[255] = "git ";
-        
+    /* Initialize our git command string. */
+    char cmdstr[255];
+    
+    /* Formalize pointers to the first two args; I am lazy and will make this more elaborate later. */
     char * input = argv[1];
     char * param = argv[2];
     
-        /* Set home repo dir if -dir specified*/
-    if(strcmp(input,"-dir") == 0)
+    /* Set commonrepo dir if -commonrepo specified*/
+    if(strcmp(input,"-commonrepo") == 0)
     {
-        char newdir[] = "git config --global --replace-all gh-get.dir ";
-        strcat(newdir, param);
+        /* Sanitize slashes */
+        int i;
+        for(i=0; i<strlen(param); i++)
+            if(param[i] == '\\')
+                param[i] = '/';
         
-        i=system(newdir);
-        
-        return i;
+        /* Set our commonrepo path in Git. */
+        sprintf(cmdstr, "git config --global --replace-all gh-get.commonrepo %s", param);
     }
     else
     {
-        /* Find if repo exists */
-        bool repoexists = false;
-        struct stat s;
-        if(repo != NULL)
-        {
-            char * statdir = repo;
-            strcat(statdir, "/");
-            strcat(statdir, input);
-            printf("%s", statdir);
-            stat(statdir, &s);
-        }
-        else
-            stat(input, &s);
-        if(S_ISDIR(s.st_mode))
-            repoexists = true;
+        /* Find if commonrepo exists. */
+        char commonrepo[255];
+        FILE *fp;
+        fp = popen("git config --global --get gh-get.commonrepo", "r");
+        fgets(commonrepo, 255, fp);
+        pclose(fp);
         
-        if(repoexists) 
+        /* Remove commonrepo newline. */
+        char * newline = strchr(commonrepo,'\n');
+        *newline = '\0';
+        
+        /* Init specified repo directory. If local repo detected, modify path. */
+        char repodir[255];
+        if(strlen(commonrepo) != 0) 
         {
-            /* If repo exists, perform a pull. */
-            strcat(cmdstr, "-C ");
-            if(repo != NULL) 
-            {
-                strcat(cmdstr, repo);
-                strcat(cmdstr, "/");
-            }
-            strcat(cmdstr, input);
-            strcat(cmdstr, " pull");
+            sprintf(repodir, "%s/", commonrepo);
         }
+        strcat(repodir, input);
+        
+        /* If repodir exists, perform a pull. */
+        if(isDir(repodir)) 
+        {
+            sprintf(cmdstr, "git -C %s pull", repodir);
+        }
+        /* If repodir does not exist, clone to repodir. */
         else
         {
-            /* If repo does not exist, clone the repo. */
-            strcat(cmdstr, "clone https://github.com/");
-            strcat(cmdstr, input);
-            strcat(cmdstr, ".git ");
-            if(repo != NULL) 
-            {
-                strcat(cmdstr, repo);
-                strcat(cmdstr, "/");
-                strcat(cmdstr, input);
-            }
+            sprintf(cmdstr, "git -C %s clone https://github.com/%s.git", repodir, input);
         }
     }
     
-    printf("%s\n", cmdstr);
-    
-    /* Run our git command. */
-    i=system(cmdstr);
-    
-    /* Return whatever value we got. */
-    return i;
+    /* Run our git command and return whatever value we got. */
+    return system(cmdstr);
 }
