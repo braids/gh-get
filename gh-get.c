@@ -9,7 +9,7 @@
 *   apt-get by cloning the repo if one does not exist, and updating the repo
 *   with a pull if it already exists.
 *   
-*   Usage: gh-get <GitHub user>/<repository>
+*   Usage: gh-get [<GitHub user>/<repository> | [-commonrepo <path>]]
 *   
 *******************************************************************************/
 #include <stdbool.h>
@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#DEFINE STR_BUF 255
 
 bool isDir(char * dir)
 {
@@ -30,12 +32,12 @@ int main(int argc, char **argv)
     /* Taking one or more args for now, yell if we get less. */
     if(argc < 2)
     {
-        printf("Error: Less than one argument specified.\nUsage: gh-get <GitHub user>/<repository>\n");
+        printf("Error: Less than one argument specified.\nUsage: gh-get [<GitHub user>/<repository> | [-commonrepo <path>]]\n");
         return 1; 
     }
     
     /* Initialize our git command string. */
-    char cmdstr[255];
+    char cmdstr[STR_BUF];
     
     /* Formalize pointers to the first two args; I am lazy and will make this more elaborate later. */
     char * input = argv[1];
@@ -56,10 +58,10 @@ int main(int argc, char **argv)
     else
     {
         /* Find if commonrepo exists. */
-        char commonrepo[255];
+        char commonrepo[STR_BUF];
         FILE *fp;
         fp = popen("git config --global --get gh-get.commonrepo", "r");
-        fgets(commonrepo, 255, fp);
+        fgets(commonrepo, STR_BUF, fp);
         pclose(fp);
         
         /* Remove commonrepo newline. */
@@ -67,7 +69,7 @@ int main(int argc, char **argv)
         *newline = '\0';
         
         /* Init specified repo directory. If local repo detected, modify path. */
-        char repodir[255];
+        char repodir[STR_BUF];
         if(strlen(commonrepo) != 0) 
         {
             sprintf(repodir, "%s/", commonrepo);
